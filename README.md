@@ -11,12 +11,13 @@ $ python3 main.py
 
 ## 依赖
 项目依赖的外部包会自动安装，如果自动安装出错，那么你可以手动安装它们。
+
 ### 必须
 - Pillow
 - Matplotlib
 - NetworkX
 
-你可以安装 Anaconda Python，或者使用命令 `$pip3 install Pillow matplotlib networkx` 安装以上 Python 包。
+你可以安装 Anaconda Python，或者使用命令 `$ pip3 install Pillow matplotlib networkx` 安装以上 Python 包。
 
 ### 可选
 - Ruby
@@ -28,3 +29,4 @@ $ python3 main.py
 - Use linguist to detect code files
 - Beautify
 - Portability
+- Configurability

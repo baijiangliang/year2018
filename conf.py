@@ -39,21 +39,7 @@ ignore_dirs = {
     ],
 }
 
-# If the commit stat exceeds limits in one commit, this commit will be considered as auto-generated
-# change and be replaced with average commit stat.
-max_files = 32
-max_insertions = 2048
-max_deletions = 2048
-
-avg_files = 2
-avg_insertions = 32
-avg_deletions = 32
-
-common_files = 8
-common_insertions = 256
-common_deletions = 256
-
-
+# If linguist.rb doesn't work, then code files are detected according to this config.
 code_file_extensions = {
     'py': 'Python',
     'go': 'Go',
