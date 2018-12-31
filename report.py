@@ -1,6 +1,8 @@
 # coding: utf8
 """Generate annual report for programmers."""
 import os
+import time
+from datetime import datetime
 from typing import Dict, Any
 
 import const
@@ -59,18 +61,29 @@ def get_user_info() -> Dict[str, Any]:
     return info
 
 
+def get_recent_year_ends() -> Dict[str, int]:
+    """ Get recent year's ends. """
+    now = datetime.now()
+    begin_year = now.year
+    if now.month == 1:
+        begin_year -= 1
+    begin_ts = time.mktime(datetime(year=begin_year, month=1, day=1).timetuple())
+    end_ts = time.mktime(datetime(year=begin_year + 1, month=1, day=1).timetuple())
+    year_ends = {
+        'year': begin_year,
+        'begin': int(begin_ts),
+        'end': int(end_ts),
+    }
+    return year_ends
+
+
 def main():
     ctx = util.DotDict()
     ctx.run_dir = os.path.dirname(os.path.realpath(__file__))
     ctx.update(get_user_info())
-    ctx.update(util.get_recent_year_ends())
+    ctx.update(get_recent_year_ends())
     print(ctx)
     repos = Repos(ctx)
-    latest = repos.get_latest_commit()
-    print(util.timestamp_to_datetime(latest.timestamp))
-    print(latest.repo_name)
-    print(latest.subject)
-    print(repos.get_commit_distribution())
 
 
 if __name__ == '__main__':
