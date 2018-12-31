@@ -1,6 +1,7 @@
 # coding: utf8
 import subprocess
 from  datetime import datetime
+from typing import List, Any
 
 
 class DotDict(dict):
@@ -34,3 +35,17 @@ def timestamp_to_fixed_day(timestamp: int) -> datetime:
 
 def is_ascii(s: str) -> bool:
     return all(ord(c) < 128 for c in s)
+
+
+def rescale_to_interval(nums: List[Any], lower_bound=0, upper_bound=1) -> List[float]:
+    """ Rescale numbers to interval [lower_bound, upper_bound]. """
+    high, low = max(nums), min(nums)
+    if high - low == 0:
+        return [upper_bound for _ in nums]
+    result = []
+    for num in nums:
+        scaled = (num - low) / (high - low) * upper_bound
+        if scaled < lower_bound:
+            scaled = lower_bound
+        result.append(scaled)
+    return result

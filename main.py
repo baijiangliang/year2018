@@ -8,6 +8,7 @@ from typing import Dict, Any
 import const
 import util
 from repo import Repos
+import picture
 
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -84,6 +85,8 @@ def main():
     ctx.update(get_recent_year_ends())
     print(ctx)
     repos = Repos(ctx)
+    # print(repos.get_merge_relations())
+    picture.draw_commit_graph(repos.get_commit_weight_by_day())
 
 
 if __name__ == '__main__':
