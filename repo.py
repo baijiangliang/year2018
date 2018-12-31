@@ -11,8 +11,6 @@ git_clone_tmpl = 'git clone {git_url}'
 git_log_tmpl = 'git log master --since="{begin}" --until="{end}"  --format="{fmt}" --numstat'
 git_show_tmpl = 'git show {commit_id} --format="{fmt}"'
 
-commit_weight = 16
-
 
 class Commit:
     def __init__(self, repo_name, commit_id: str, parent_ids: List[str], author, email: str,
@@ -41,22 +39,64 @@ class Repos:
                 self.repos.append(repo)
 
     def get_commit_summary(self):
-        pass
+        summary = {
+            'projects': len(self.repos),
+            'commits': 0,
+            'merges': 0,
+            'insert': 0,
+            'delete': 0,
+        }
+        for repo in self.repos:
+            repo_stat = repo.get_commit_summary()
+            summary['commits'] += repo_stat['commits']
+            summary['merges'] += repo_stat['merges']
+            summary['insert'] += repo_stat['insert']
+            summary['delete'] += repo_stat['delete']
+        return summary
 
     def get_most_common_repo(self):
-        pass
+        """ Get the repo which has most user commits. """
+        repo = commits = None
+        for repo in self.repos:
+            summary = repo.get_commit_summary()
+            if repo is None or summary['commits'] > commits:
+                repo, commits = repo, summary['commits']
+        return repo
 
-    def get_commit_distribution(self, duration_type='hour') -> Dict[int, int]:
+    def get_commit_times_by_hour(self) -> Dict[int, int]:
+        """ Get each hour's commit time. """
         commits = {}
         for repo in self.repos:
             for commit in repo.user_commits:
-                if duration_type == 'hour':
-                    duration = util.timestamp_to_datetime(commit.timestamp).hour
-                elif duration_type == 'day_of_year':
-                    duration = util.timestamp_to_day_of_year(commit.timestamp)
+                hour = util.timestamp_to_datetime(commit.timestamp).hour
+                commits[hour] = commits.get(hour, 0) + 1
+        return commits
+
+    def get_commit_weight_by_day(self) -> Dict[int, int]:
+        """ Get each day's commit weight. """
+        commits = self.get_commit_stat_by_day()
+        result = {day.timetuple().tm_yday: stat['weight'] for day, stat in commits.items()}
+        return result
+
+    def get_commit_stat_by_day(self) -> Dict[datetime.date, Dict[str, int]]:
+        """ Get each day's commit stat. """
+        commits = {}
+        for repo in self.repos:
+            for commit in repo.user_commits:
+                commit_day = util.timestamp_to_datetime(commit.timestamp).date()
+                if commit_day not in commits:
+                    commits[commit_day] = {
+                        'commits': 1,
+                        'insert': commit.code_ins,
+                        'delete': commit.code_del,
+                    }
                 else:
-                    continue
-                commits[duration] = commits.get(duration, 0) + 1
+                    commits[commit_day]['commits'] += 1
+                    commits[commit_day]['insert'] += commit.code_ins
+                    commits[commit_day]['delete'] += commit.code_del
+        for day, stat in commits.items():
+            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
+            commits[day]['weight'] = weight
         return commits
 
     def get_latest_commit(self) -> Commit:
@@ -79,29 +119,12 @@ class Repos:
 
     def get_busiest_day(self) -> Tuple[datetime.date, Dict[str, int]]:
         """ Get the day which has max commit weight. """
-        commits = {}
-        for repo in self.repos:
-            for commit in repo.user_commits:
-                commit_day = util.timestamp_to_datetime(commit.timestamp).date()
-                if commit_day not in commits:
-                    commits[commit_day] = {
-                        'commits': 1,
-                        'insert': commit.code_ins,
-                        'delete': commit.code_del,
-                    }
-                else:
-                    commits[commit_day]['commits'] += 1
-                    commits[commit_day]['insert'] += commit.code_ins
-                    commits[commit_day]['delete'] += commit.code_del
-        weights = []
-        for day, stat in commits.items():
-            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
-            weights.append((day, weight))
-        weights.sort(key=lambda x: x[1], reverse=True)
-        busiest_day = weights[0][0]
+        commits = self.get_commit_stat_by_day()
+        busiest_day = max(commits.keys(), key=lambda x: commits[x]['weight'])
         return busiest_day, commits[busiest_day]
 
     def get_language_stat(self) -> Dict[str, Any]:
+        """ Get each used language's commit stat. """
         res = {}
         for repo in self.repos:
             for commit in repo.user_commits:
@@ -121,7 +144,8 @@ class Repos:
             res[lang]['weight'] = weight
         return res
 
-    def get_merge_relations(self) -> Dict[str, Dict[str, int]]:
+    def get_merge_stat(self) -> Dict[str, Dict[str, int]]:
+        """ Get merge stat related to user. """
         merges = {}
         # One author email may related to several author names, use the most readable name
         authors = {}
@@ -155,7 +179,9 @@ class Repos:
                         authors[commit.email].add(commit.author)
         result = {}
         for email, stat in merges.items():
-            name = choose_most_readable_name(authors[email])
+            # TODO: networkx doesn't support Chinese well, use English names instead, damn it!
+            # name = choose_most_readable_name(authors[email])
+            name = email.split('@')[0].split('.')[0]
             if name not in result:
                 result[name] = stat
             else:
@@ -302,7 +328,7 @@ class Repo:
         """
         Detect which programming language is used in the file .
         """
-        # TODO use more sophisticated method
+        # TODO use linguist
         language = ''
         first_dir = file_path.split('/', maxsplit=1)[0].strip()
         if first_dir in conf.ignore_dirs['common'] or '.' not in file_path:
@@ -316,7 +342,7 @@ class Repo:
 
 
 def weight_commits(commit_times, insertions, deletions: int) -> int:
-    return commit_times * commit_weight + insertions + deletions
+    return commit_times * const.COMMIT_WEIGHT + insertions + deletions
 
 
 def choose_most_readable_name(names: Set[str]) -> str:
