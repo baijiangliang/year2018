@@ -11,6 +11,20 @@ git_clone_tmpl = 'git clone {git_url}'
 git_log_tmpl = 'git log master --since="{begin}" --until="{end}"  --format="{fmt}" --numstat'
 git_show_tmpl = 'git show {commit_id} --format="{fmt}"'
 
+# If the commit stat exceeds limits in one commit, this commit will be considered as auto-generated
+# change and be replaced with average commit stat.
+max_files = 32
+max_insertions = 2048
+max_deletions = 2048
+
+avg_files = 2
+avg_insertions = 32
+avg_deletions = 32
+
+common_files = 8
+common_insertions = 256
+common_deletions = 256
+
 
 class Commit:
     def __init__(self, repo_name, commit_id: str, parent_ids: List[str], author, email: str,
@@ -309,14 +323,13 @@ class Repo:
                 lang_stat[lang]['delete'] += delete
         # Too much changes, considered as auto generated code: library code, thrift source code,
         # auto-format code, etc. Use averaged guess instead.
-        if code_files > conf.max_files or code_ins > conf.max_insertions or code_del > \
-                conf.max_deletions:
-            code_files = code_files if code_files < conf.common_files else conf.avg_files
-            code_ins = code_ins if code_ins < conf.common_insertions else conf.avg_insertions
-            code_del = code_del if code_del < conf.common_deletions else conf.avg_deletions
+        if code_files > max_files or code_ins > max_insertions or code_del > max_deletions:
+            code_files = code_files if code_files < common_files else avg_files
+            code_ins = code_ins if code_ins < common_insertions else avg_insertions
+            code_del = code_del if code_del < common_deletions else avg_deletions
             lang_stat = {}
         # Few changes, use total files stat
-        elif total_files < conf.common_files and (total_ins + total_del) < conf.common_insertions:
+        elif total_files < common_files and (total_ins + total_del) < common_insertions:
             code_files, code_ins, code_del = total_files, total_ins, total_del
         commit.code_files = code_files
         commit.code_ins = code_ins

@@ -7,14 +7,13 @@ from typing import Dict, Any
 
 import const
 import util
-from repo import Repos
-import picture
+from report import Reporter
 
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def get_user_info() -> Dict[str, Any]:
-    """ Get  basic info from user inputs. """
+    """ Get information from user's inputs. """
     print('Sometimes it is the people no one imagines anything of, who do the things no one can '
           'imagine.\n' + ' ' * 70 + '-- Alan Turing')
     print('欢迎使用程序员年度总结生成器')
@@ -53,25 +52,32 @@ def get_user_info() -> Dict[str, Any]:
                 if util.run(const.CHECK_GIT_DIR_CMD, check=False) == 'true':
                     git_inputs.append(git_dir)
             break
-    # TODO encrypt or not
+    print('请选择是否对输出结果进行加密，默认不加密(开启加密后，year2018 会变成 ye****18)')
+    encrypt = False
+    option = input('是否加密(y/n)，输入 y 开启\n').strip()
+
+    if option.lower() == 'y':
+        encrypt = True
+
     info = {
         'name': name,
         'emails': emails,
         'git_inputs': git_inputs,
+        'encrypt': encrypt,
     }
     return info
 
 
-def get_recent_year_ends() -> Dict[str, int]:
-    """ Get recent year's ends. """
+def get_time_info() -> Dict[str, int]:
+    """ Get recent year's info. """
     now = datetime.now()
-    begin_year = now.year
+    recent_year = now.year
     if now.month == 1:
-        begin_year -= 1
-    begin_ts = time.mktime(datetime(year=begin_year, month=1, day=1).timetuple())
-    end_ts = time.mktime(datetime(year=begin_year + 1, month=1, day=1).timetuple())
+        recent_year -= 1
+    begin_ts = time.mktime(datetime(year=recent_year, month=1, day=1).timetuple())
+    end_ts = time.mktime(datetime(year=recent_year + 1, month=1, day=1).timetuple())
     year_ends = {
-        'year': begin_year,
+        'year': recent_year,
         'begin': int(begin_ts),
         'end': int(end_ts),
     }
@@ -80,13 +86,14 @@ def get_recent_year_ends() -> Dict[str, int]:
 
 def main():
     ctx = util.DotDict()
-    ctx.run_dir = os.path.dirname(os.path.realpath(__file__))
+    ctx.run_dir = RUN_DIR
     ctx.update(get_user_info())
-    ctx.update(get_recent_year_ends())
-    print(ctx)
-    repos = Repos(ctx)
-    # print(repos.get_merge_relations())
-    picture.draw_commit_graph(repos.get_commit_weight_by_day())
+    ctx.update(get_time_info())
+    print('\nContext:')
+    for key, val in ctx.items():
+        print(key + ': ' + str(val))
+    reporter = Reporter(ctx)
+    reporter.get_commit_graph()
 
 
 if __name__ == '__main__':
