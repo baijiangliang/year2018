@@ -90,8 +90,16 @@ def main():
     print('\nContext:')
     for key, val in ctx.items():
         print(key + ': ' + str(val))
-    reporter = Reporter(ctx)
-    reporter.generate_report()
+    print('报告生成中...')
+    try:
+        reporter = Reporter(ctx)
+        reporter.generate_report()
+        print('报告生成成功')
+        print('请到 ' + reporter.output_dir + ' 查看你的年度编程报告')
+    except Exception as e:
+        print(e)
+        print('报告生成失败')
+        print('请到 ' + const.REPO_URL + ' 提 issue')
 
 
 if __name__ == '__main__':

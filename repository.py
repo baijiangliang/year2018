@@ -3,9 +3,9 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Set
 
+import conf
 import const
 import util
-import conf
 
 git_clone_tmpl = 'git clone {git_url}'
 git_log_tmpl = 'git log master --since="{begin}" --until="{end}"  --format="{fmt}" --numstat'
@@ -236,7 +236,9 @@ class Repos:
             summary['merges'] += repo_stat['merges']
             summary['insert'] += repo_stat['insert']
             summary['delete'] += repo_stat['delete']
-        return util.DotDict(summary)
+        res = util.DotDict(summary)
+        res.coding_power = compute_coding_power(res.projects, res.commits, res.insert, res.delete)
+        return res
 
     def get_most_common_repo(self) -> Repo:
         """ Get the repo which has most user commits. """
@@ -383,3 +385,7 @@ def get_most_readable_name(names: Set[str]) -> str:
             candidates.append(name)
     candidates = candidates if candidates else names
     return max(candidates, key=lambda x: len(x))
+
+
+def compute_coding_power(projects, commits, insertions, deletions: int) -> int:
+    return projects * const.PROJECT_WEIGHT + commits * const.COMMIT_WEIGHT + insertions + deletions

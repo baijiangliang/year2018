@@ -51,11 +51,11 @@ def rescale_to_interval(nums: List[Any], lower_bound=0, upper_bound=1) -> List[f
     return result
 
 
-def get_percents(nums: List[Any], ratio=100) -> List[float]:
+def get_percents(nums: List[Any], ratio=100, digits=2) -> List[float]:
     total = sum(nums)
     if total == 0:
         total = 1
-    return [num / total * ratio for num in nums]
+    return [round(num / total * ratio, digits) for num in nums]
 
 
 def get_name_from_email(email: str) -> str:
@@ -87,5 +87,7 @@ def encrypt_string(string: str, encrypt=False) -> str:
         return string
     elif size <= 5:
         return string[:2] + '*' * (size - 2)
-    else:
+    elif size <= 9:
         return string[:2] + '*' * (size - 4) + string[-2:]
+    else:
+        return string[:3] + '*' * (size - 6) + string[-3:]
