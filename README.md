@@ -24,10 +24,9 @@ $ python3 main.py
 - Ruby gems: [github-linguist](https://github.com/github/linguist)
 
 ### 示例
-- [!merge_stat](static/examples/5_merge_stat.png)
+- ![merge_stat](static/examples/5_merge_stat.png)
 
 ## TODO
-- Example images
 - Automatically install dependencies
 - Use linguist to detect code files
 - Beautify

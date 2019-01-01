@@ -167,12 +167,24 @@ class Reporter:
         plt.figure(1, figsize=(5, 5))
         labels = list(lang_stat.keys())
         weights = [lang_stat[key]['weight'] for key in labels]
+        percents = util.get_percents(weights)
+        weighted = [(labels[i], percents[i]) for i in range(len(labels))]
+        weighted.sort(key=lambda x: x[1], reverse=True)
+        res = []
+        other_index = 0
+        for i, item in enumerate(weighted):
+            if item[1] > 2:
+                res.append(item)
+            else:
+                other_index = i
+        other_percent = sum(list(item[1] for item in weighted[other_index:])) + 0.01
+        res.append(('other', other_percent))
+        labels, weights = [item[0] for item in res], [item[1] for item in res]
         plt.pie(weights, labels=labels, autopct='%1.1f%%', startangle=90)
         plt.title('Programming languages by weight')
         fig_path = self.save_fig('language_pie', 'png')
         language_pie = Image.open(fig_path)
         img.paste(language_pie, (100, 360))
-        percents = util.get_percents(weights)
         language_cnt = len(list(p for p in percents if p > 5))
         if language_cnt == 1:
             text = '看来你是一个专一的程序员'

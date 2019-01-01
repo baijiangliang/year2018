@@ -89,6 +89,10 @@ def main():
     ctx.update(get_time_info())
     print('\nContext:')
     for key, val in ctx.items():
+        if key == 'git_inputs:':
+            print('git_inputs: ')
+            print(' '.join(val))
+            continue
         print(key + ': ' + str(val))
     print('报告生成中...')
     try:
