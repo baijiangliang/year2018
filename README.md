@@ -7,7 +7,7 @@ $ git clone https://github.com/baijiangliang/year2018.git
 $ cd /path-to-year2018/
 $ python3 main.py
 ```
-注意：必须使用 Python3。Python3 已经发布十周年了，试一下吧，它很棒。如果你的电脑上没有 Python3，你可以在 [Anaconda](https://www.anaconda.com/download/) 或者 [Python 官方网站](https://www.python.org/downloads/) 下载安装。推荐使用 Anaconda Python，它已经包含了此项目依赖的所有 Python 包。
+注意：必须使用 Python3。Python3 已经发布十年了，试一下吧，它很棒。如果你的电脑上没有 Python3，你可以在 [Anaconda](https://www.anaconda.com/download/) 或者 [Python 官方网站](https://www.python.org/downloads/) 下载安装。推荐使用 Anaconda Python，它已经包含了此项目依赖的所有 Python 包。
 
 ## 依赖
 项目依赖的外部包会自动安装，如果自动安装出错，那么你可以手动安装它们。

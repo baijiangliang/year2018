@@ -43,167 +43,6 @@ class Commit:
         self.lang_stat = {}
 
 
-class Repos:
-    def __init__(self, ctx: util.DotDict):
-        self.ctx = ctx
-        self.repos = []
-        for git_input in ctx.git_inputs:
-            repo = Repo(git_input, ctx)
-            if repo.user_commits:
-                self.repos.append(repo)
-
-    def get_commit_summary(self):
-        summary = {
-            'projects': len(self.repos),
-            'commits': 0,
-            'merges': 0,
-            'insert': 0,
-            'delete': 0,
-        }
-        for repo in self.repos:
-            repo_stat = repo.get_commit_summary()
-            summary['commits'] += repo_stat['commits']
-            summary['merges'] += repo_stat['merges']
-            summary['insert'] += repo_stat['insert']
-            summary['delete'] += repo_stat['delete']
-        return summary
-
-    def get_most_common_repo(self):
-        """ Get the repo which has most user commits. """
-        repo = commits = None
-        for repo in self.repos:
-            summary = repo.get_commit_summary()
-            if repo is None or summary['commits'] > commits:
-                repo, commits = repo, summary['commits']
-        return repo
-
-    def get_commit_times_by_hour(self) -> Dict[int, int]:
-        """ Get each hour's commit time. """
-        commits = {}
-        for repo in self.repos:
-            for commit in repo.user_commits:
-                hour = util.timestamp_to_datetime(commit.timestamp).hour
-                commits[hour] = commits.get(hour, 0) + 1
-        return commits
-
-    def get_commit_weight_by_day(self) -> Dict[int, int]:
-        """ Get each day's commit weight. """
-        commits = self.get_commit_stat_by_day()
-        result = {day.timetuple().tm_yday: stat['weight'] for day, stat in commits.items()}
-        return result
-
-    def get_commit_stat_by_day(self) -> Dict[datetime.date, Dict[str, int]]:
-        """ Get each day's commit stat. """
-        commits = {}
-        for repo in self.repos:
-            for commit in repo.user_commits:
-                commit_day = util.timestamp_to_datetime(commit.timestamp).date()
-                if commit_day not in commits:
-                    commits[commit_day] = {
-                        'commits': 1,
-                        'insert': commit.code_ins,
-                        'delete': commit.code_del,
-                    }
-                else:
-                    commits[commit_day]['commits'] += 1
-                    commits[commit_day]['insert'] += commit.code_ins
-                    commits[commit_day]['delete'] += commit.code_del
-        for day, stat in commits.items():
-            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
-            commits[day]['weight'] = weight
-        return commits
-
-    def get_latest_commit(self) -> Commit:
-        """ Get the commit which has latest commit time. """
-        latest_commit = latest_time = None
-        for repo in self.repos:
-            for commit in repo.user_commits:
-                commit_time = util.timestamp_to_fixed_day(commit.timestamp)
-                if latest_commit is None:
-                    latest_commit, latest_time = commit, commit_time
-                    continue
-                # commit before dawn
-                if latest_time.hour < 6:
-                    if commit_time.hour < 6 and commit_time > latest_time:
-                        latest_commit, latest_time = commit, commit_time
-                else:
-                    if commit_time.hour < 6 or commit_time > latest_time:
-                        latest_commit, latest_time = commit, commit_time
-        return latest_commit
-
-    def get_busiest_day(self) -> Tuple[datetime.date, Dict[str, int]]:
-        """ Get the day which has max commit weight. """
-        commits = self.get_commit_stat_by_day()
-        busiest_day = max(commits.keys(), key=lambda x: commits[x]['weight'])
-        return busiest_day, commits[busiest_day]
-
-    def get_language_stat(self) -> Dict[str, Any]:
-        """ Get each used language's commit stat. """
-        res = {}
-        for repo in self.repos:
-            for commit in repo.user_commits:
-                for lang, stat in commit.lang_stat.items():
-                    if lang not in res:
-                        res[lang] = {
-                            'commits': 1,
-                            'insert': stat['insert'],
-                            'delete': stat['delete'],
-                        }
-                    else:
-                        res[lang]['commits'] += 1
-                        res[lang]['insert'] += stat['insert']
-                        res[lang]['delete'] += stat['delete']
-        for lang, stat in res.items():
-            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
-            res[lang]['weight'] = weight
-        return res
-
-    def get_merge_stat(self) -> Dict[str, Dict[str, int]]:
-        """ Get merge stat related to user. """
-        merges = {}
-        # One author email may related to several author names, use the most readable name
-        authors = {}
-        for repo in self.repos:
-            for commit in repo.commit_list:
-                if len(commit.parents) == 1:
-                    continue
-                merged_id = commit.parents[1]
-                merged = repo.get_commit_by_id(merged_id)
-                if not merged:
-                    continue
-                # user merges his own commit
-                if commit.email in self.ctx.emails and merged.email in self.ctx.emails:
-                    continue
-                # user merges others' commit
-                elif commit.email in self.ctx.emails:
-                    if merged.email not in merges:
-                        merges[merged.email] = {}
-                        authors[merged.email] = {merged.author}
-                    else:
-                        merges[merged.email]['merge'] = merges[merged.email].get('merge', 0) + 1
-                        authors[merged.email].add(merged.author)
-                # user's commit merged by others
-                elif merged.email in self.ctx.emails:
-                    if commit.email not in merges:
-                        merges[commit.email] = {}
-                        authors[commit.email] = {commit.author}
-                    else:
-                        merges[commit.email]['merged_by'] = merges[commit.email].get('merged_by',
-                                                                                     0) + 1
-                        authors[commit.email].add(commit.author)
-        result = {}
-        for email, stat in merges.items():
-            # TODO: networkx doesn't support Chinese well, use English names instead, damn it!
-            # name = choose_most_readable_name(authors[email])
-            name = email.split('@')[0].split('.')[0]
-            if name not in result:
-                result[name] = stat
-            else:
-                result[name]['merge'] += stat['merge']
-                result[name]['merged_by'] += stat['merged_by']
-        return result
-
-
 class Repo:
     def __init__(self, git_url_or_path: str, ctx: util.DotDict):
         if os.path.isdir(git_url_or_path):  # git repository path
@@ -216,7 +55,7 @@ class Repo:
         else:  # git remote url
             repo_parent_dir = os.path.join(ctx.run_dir, 'user_repos')
             if not os.path.exists(repo_parent_dir):
-                os.mkdir('user_repos')
+                os.mkdir(repo_parent_dir)
             os.chdir(repo_parent_dir)
             repo_name = git_url_or_path.rsplit('/', 1)[-1].split('.')[0]
             repo_dir = os.path.join(repo_parent_dir, repo_name)
@@ -266,19 +105,39 @@ class Repo:
             Repo.parse_commit_stat(commit)
         return commit
 
-    def get_commit_summary(self) -> Dict[str, Any]:
-        res = {
+    def get_commit_summary(self) -> util.DotDict:
+        summary = {
             'commits': 0,
             'merges': 0,
             'insert': 0,
             'delete': 0,
         }
         for commit in self.user_commits:
-            res['commits'] += 1
+            summary['commits'] += 1
             if len(commit.parents) > 1:
-                res['merges'] += 1
-            res['insert'] += commit.code_ins
-            res['delete'] -= commit.code_del
+                summary['merges'] += 1
+            summary['insert'] += commit.code_ins
+            summary['delete'] += commit.code_del
+        return util.DotDict(summary)
+
+    def get_language_stat(self) -> Dict[str, Any]:
+        """ Get each used language's commit stat. """
+        res = {}
+        for commit in self.user_commits:
+            for lang, stat in commit.lang_stat.items():
+                if lang not in res:
+                    res[lang] = {
+                        'commits': 1,
+                        'insert': stat['insert'],
+                        'delete': stat['delete'],
+                    }
+                else:
+                    res[lang]['commits'] += 1
+                    res[lang]['insert'] += stat['insert']
+                    res[lang]['delete'] += stat['delete']
+        for lang, stat in res.items():
+            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
+            res[lang]['weight'] = weight
         return res
 
     def get_commit_by_id(self, commit_id) -> Any:
@@ -354,11 +213,170 @@ class Repo:
         return language
 
 
+class Repos:
+    def __init__(self, ctx: util.DotDict):
+        self.ctx = ctx
+        self.repos = []
+        for git_input in ctx.git_inputs:
+            repo = Repo(git_input, ctx)
+            if repo.user_commits:
+                self.repos.append(repo)
+
+    def get_commit_summary(self) -> util.DotDict:
+        summary = {
+            'projects': len(self.repos),
+            'commits': 0,
+            'merges': 0,
+            'insert': 0,
+            'delete': 0,
+        }
+        for repo in self.repos:
+            repo_stat = repo.get_commit_summary()
+            summary['commits'] += repo_stat['commits']
+            summary['merges'] += repo_stat['merges']
+            summary['insert'] += repo_stat['insert']
+            summary['delete'] += repo_stat['delete']
+        return util.DotDict(summary)
+
+    def get_most_common_repo(self) -> Repo:
+        """ Get the repo which has most user commits. """
+        most_repo = commits = None
+        for repo in self.repos:
+            summary = repo.get_commit_summary()
+            if most_repo is None or summary['commits'] > commits:
+                most_repo, commits = repo, summary['commits']
+        return most_repo
+
+    def get_commit_times_by_hour(self) -> Dict[int, int]:
+        """ Get each hour's commit time. """
+        commits = {}
+        for repo in self.repos:
+            for commit in repo.user_commits:
+                hour = util.timestamp_to_datetime(commit.timestamp).hour
+                commits[hour] = commits.get(hour, 0) + 1
+        return commits
+
+    def get_commit_weight_by_day(self) -> Dict[int, int]:
+        """ Get each day's commit weight. """
+        commits = self.get_commit_stat_by_day()
+        result = {day.timetuple().tm_yday: stat['weight'] for day, stat in commits.items()}
+        return result
+
+    def get_commit_stat_by_day(self) -> Dict[datetime.date, Dict[str, int]]:
+        """ Get each day's commit stat. """
+        commits = {}
+        for repo in self.repos:
+            for commit in repo.user_commits:
+                commit_day = util.timestamp_to_datetime(commit.timestamp).date()
+                if commit_day not in commits:
+                    commits[commit_day] = {
+                        'commits': 1,
+                        'insert': commit.code_ins,
+                        'delete': commit.code_del,
+                    }
+                else:
+                    commits[commit_day]['commits'] += 1
+                    commits[commit_day]['insert'] += commit.code_ins
+                    commits[commit_day]['delete'] += commit.code_del
+        for day, stat in commits.items():
+            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
+            commits[day]['weight'] = weight
+        return commits
+
+    def get_latest_commit(self) -> Commit:
+        """ Get the commit which has latest commit time. """
+        latest_commit = latest_time = None
+        for repo in self.repos:
+            for commit in repo.user_commits:
+                commit_time = util.timestamp_to_fixed_day(commit.timestamp)
+                if latest_commit is None:
+                    latest_commit, latest_time = commit, commit_time
+                    continue
+                # commit before dawn
+                if latest_time.hour < 6:
+                    if commit_time.hour < 6 and commit_time > latest_time:
+                        latest_commit, latest_time = commit, commit_time
+                else:
+                    if commit_time.hour < 6 or commit_time > latest_time:
+                        latest_commit, latest_time = commit, commit_time
+        return latest_commit
+
+    def get_busiest_day(self) -> Tuple[datetime.date, Dict[str, int]]:
+        """ Get the day which has max commit weight. """
+        commits = self.get_commit_stat_by_day()
+        busiest_day = max(commits.keys(), key=lambda x: commits[x]['weight'])
+        return busiest_day, commits[busiest_day]
+
+    def get_language_stat(self) -> Dict[str, Any]:
+        """ Get each used language's commit stat. """
+        res = {}
+        for repo in self.repos:
+            repo_stat = repo.get_language_stat()
+            for lang, stat in repo_stat.items():
+                if lang not in res:
+                    res[lang] = stat
+                else:
+                    res[lang]['commits'] += stat['commits']
+                    res[lang]['insert'] += stat['insert']
+                    res[lang]['delete'] += stat['delete']
+        for lang, stat in res.items():
+            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
+            res[lang]['weight'] = weight
+        return res
+
+    def get_merge_stat(self) -> Dict[str, Dict[str, Any]]:
+        """ Get merge stat related to user. """
+        merges = {}
+        # One author email may related to several author names, use the most readable name
+        authors = {}
+        for repo in self.repos:
+            for commit in repo.commit_list:
+                if len(commit.parents) == 1:
+                    continue
+                merged_id = commit.parents[1]
+                merged = repo.get_commit_by_id(merged_id)
+                if not merged:
+                    continue
+                # user merges his own commit
+                if commit.email in self.ctx.emails and merged.email in self.ctx.emails:
+                    continue
+                # user merges others' commit
+                elif commit.email in self.ctx.emails:
+                    if merged.email not in merges:
+                        merges[merged.email] = {}
+                        authors[merged.email] = {merged.author}
+                    else:
+                        merges[merged.email]['merge'] = merges[merged.email].get('merge', 0) + 1
+                        authors[merged.email].add(merged.author)
+                # user's commit merged by others
+                elif merged.email in self.ctx.emails:
+                    if commit.email not in merges:
+                        merges[commit.email] = {}
+                        authors[commit.email] = {commit.author}
+                    else:
+                        merges[commit.email]['merged_by'] = merges[commit.email].get('merged_by',
+                                                                                     0) + 1
+                        authors[commit.email].add(commit.author)
+        result = {}
+        for email, stat in merges.items():
+            # TODO: networkx doesn't support Chinese well, use English names instead, damn it!
+            readable_name = util.encrypt_name(get_most_readable_name(authors[email]),
+                                              self.ctx.encrypt)
+            name = util.encrypt_name(util.get_name_from_email(email), self.ctx.encrypt)
+            if name not in result:
+                result[name] = stat
+                result[name]['readable_name'] = readable_name
+            else:
+                result[name]['merge'] += stat['merge']
+                result[name]['merged_by'] += stat['merged_by']
+        return result
+
+
 def weight_commits(commit_times, insertions, deletions: int) -> int:
     return commit_times * const.COMMIT_WEIGHT + insertions + deletions
 
 
-def choose_most_readable_name(names: Set[str]) -> str:
+def get_most_readable_name(names: Set[str]) -> str:
     candidates = []
     for name in names:
         if not util.is_ascii(name):
