@@ -52,13 +52,11 @@ def get_user_info() -> Dict[str, Any]:
                 if util.run(const.CHECK_GIT_DIR_CMD, check=False) == 'true':
                     git_inputs.append(git_dir)
             break
-    print('请选择是否对输出结果进行加密，默认不加密(开启加密后，year2018 会变成 ye****18)')
+    print('请选择是否对报告中的项目名、人名等进行加密，默认不加密(开启加密后，year2018 会变成 ye****18)')
     encrypt = False
     option = input('是否加密(y/n)，输入 y 开启\n').strip()
-
     if option.lower() == 'y':
         encrypt = True
-
     info = {
         'name': name,
         'emails': emails,
@@ -92,8 +90,16 @@ def main():
     print('\nContext:')
     for key, val in ctx.items():
         print(key + ': ' + str(val))
-    reporter = Reporter(ctx)
-    reporter.get_commit_graph()
+    print('报告生成中...')
+    try:
+        reporter = Reporter(ctx)
+        reporter.generate_report()
+        print('报告生成成功')
+        print('请到 ' + reporter.output_dir + ' 查看你的年度编程报告')
+    except Exception as e:
+        print(e)
+        print('报告生成失败')
+        print('请到 ' + const.REPO_URL + ' 提 issue')
 
 
 if __name__ == '__main__':
