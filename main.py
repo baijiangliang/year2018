@@ -51,7 +51,6 @@ def get_user_info() -> Dict[str, Any]:
                 os.chdir(git_dir)
                 if util.run(const.CHECK_GIT_DIR_CMD, check=False) == 'true':
                     git_inputs.append(git_dir)
-            break
     print('请选择是否对报告中的项目名、人名等进行加密，默认不加密(开启加密后，year2018 会变成 ye****18)')
     encrypt = False
     option = input('是否加密(y/n)，输入 y 开启\n').strip()

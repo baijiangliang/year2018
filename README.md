@@ -23,8 +23,8 @@ $ python3 main.py
 - Ruby
 - Ruby gems: [github-linguist](https://github.com/github/linguist)
 
-### 示例
-- ![merge_stat](static/examples/5_merge_stat.png)
+## 示例
+![merge_stat](static/examples/5_merge_stat.png)
 
 ## TODO
 - Automatically install dependencies
