@@ -257,6 +257,9 @@ class Reporter:
         self.add_header(img)
         self.add_footer(img)
         merges = self.repos.get_merge_stat()
+        if not merges:
+            print('Fail to generate merge stat!')
+            return
         user_name = util.get_name_from_email(self.ctx.emails[0])
         edges = []
         weights = []
@@ -317,7 +320,7 @@ class Reporter:
         bolds1 = [0, 2]
         texts2 = [
             '这一天你一共提交了 ',
-            str(stat['commits']),
+            str(len(stat['commits'])),
             ' 次更新'
         ]
         bolds2 = [1]
