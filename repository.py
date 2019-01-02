@@ -1,5 +1,6 @@
 # coding: utf8
 import os
+import traceback
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Set
 
@@ -27,9 +28,9 @@ common_deletions = 256
 
 
 class Commit:
-    def __init__(self, repo_name, commit_id: str, parent_ids: List[str], author, email: str,
+    def __init__(self, repo_dir, commit_id: str, parent_ids: List[str], author, email: str,
                  timestamp: int):
-        self.repo_name = repo_name
+        self.repo_dir = repo_dir
         self.id = commit_id
         self.parents = parent_ids
         self.author = author
@@ -67,7 +68,7 @@ class Repo:
                     print('Error: fail to clone {0}, reason: {1}'.format(git_url_or_path, e))
                     raise e
         self.git_dir = repo_dir
-        self.name = repo_name
+        self.name = util.encrypt_string(repo_name, ctx.encrypt)
         self.git_url = util.run(const.GIT_REMOTE_URL_CMD, check=False)
         self.ctx = ctx
         self.commit_list = []
@@ -103,7 +104,7 @@ class Repo:
         lines = commit_log.split('\n')
         if len(lines) < 7:
             raise ValueError("Wrong git log format: " + commit_log)
-        commit = Commit(repo_name=self.name, commit_id=lines[0], parent_ids=lines[1].split(' '),
+        commit = Commit(repo_dir=self.git_dir, commit_id=lines[0], parent_ids=lines[1].split(' '),
                         author=lines[2], email=lines[3], timestamp=int(lines[4]))
         commit.subject = lines[5]
         commit.num_stat = [line.strip() for line in lines[6:] if line.strip()]
@@ -227,6 +228,7 @@ class Repos:
             try:
                 repo = Repo(git_input, ctx)
             except Exception as e:
+                traceback.print_exc()
                 print(e)
                 continue
             if repo.user_commits:

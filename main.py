@@ -1,5 +1,6 @@
 # coding: utf8
 """Generate annual report for programmers."""
+import traceback
 import os
 import time
 from datetime import datetime
@@ -100,6 +101,7 @@ def main():
         print('请到 ' + reporter.output_dir + ' 查看你的年度编程报告')
     except Exception as e:
         print(e)
+        traceback.print_exc()
         print('报告生成失败')
         print('请到 ' + const.REPO_URL + ' 提 issue')
 
