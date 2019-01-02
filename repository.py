@@ -230,7 +230,7 @@ class Repo:
         Detect which programming language is used in the file .
         """
         first_dir = file_path.split('/', maxsplit=1)[0].strip()
-        if first_dir in conf.ignore_dirs['common']:
+        if first_dir in conf.ignore_directories['common']:
             return ''
         full_path = os.path.join(self.directory, file_path)
         if self.linguist_enabled and os.path.exists(full_path):
@@ -238,7 +238,7 @@ class Repo:
         else:
             extension = file_path.rsplit('.', maxsplit=1)[-1].strip().lower()
             language = conf.code_file_extensions.get(extension, '')
-        if first_dir in conf.ignore_dirs.get(language, []):
+        if first_dir in conf.ignore_directories.get(language, []):
             language = ''
         return language
 
