@@ -13,9 +13,9 @@ $ python3 main.py
 项目依赖的外部包~~会自动安装~~(暂时还不支持，请安装 Anaconda Python)，如果自动安装出错，那么你可以手动安装它们。
 
 ### 必须
-- Pillow
-- Matplotlib
-- NetworkX
+- [Pillow](https://pillow.readthedocs.io)
+- [Matplotlib](https://matplotlib.org/)
+- [NetworkX](https://networkx.github.io/)
 
 你可以安装 Anaconda Python，或者使用命令 `$ pip3 install Pillow matplotlib networkx` 安装以上 Python 包。
 
@@ -24,7 +24,8 @@ $ python3 main.py
 - Ruby gems: [github-linguist](https://github.com/github/linguist)
 
 ## 示例
-![merge_stat](static/examples/5_merge_stat.png)
+- ![report](static/examples/report.png)
+- ![merge_stat](static/examples/5_merge_stat.png)
 
 ## TODO
 - Automatically install dependencies

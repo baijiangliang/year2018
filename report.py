@@ -1,5 +1,6 @@
 # coding: utf8
 import calendar
+import csv
 import os
 from typing import List, Tuple, Any
 
@@ -55,10 +56,13 @@ class Reporter:
         self.output_dir = os.path.join(self.ctx.run_dir, 'output')
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
+        self.report_file = open(os.path.join(self.output_dir, 'report.csv'), 'w', encoding='utf8')
+        self.report = csv.writer(self.report_file, lineterminator='\n')
         self.styles = (TextStyle('black', font_normal_26), TextStyle(colors[3], font_regular_36))
         self.styles1 = (TextStyle('black', font_normal_30), TextStyle('black', font_normal_30))
 
     def generate_report(self):
+        self.write_stat()
         self.draw_cover()
         self.draw_short_summary()
         self.draw_most_common_repo()
@@ -68,6 +72,55 @@ class Reporter:
         self.draw_latest_commit()
         self.draw_commit_distribution()
         self.draw_summary()
+
+    def write_stat(self):
+        email_name = util.get_name_from_email(self.ctx.emails[0])
+        title = ['Annual programming report {0} of {1}'.format(self.ctx.year, email_name)]
+        self.report.writerow(title)
+        self.report.writerow('')
+
+        summary = self.repos.get_commit_summary()
+        self.report.writerow(['Summary'])
+        names = ['projects', 'commits', 'merges', 'changes']
+        for name in names[:3]:
+            self.report.writerow([name, summary[name]])
+        self.report.writerow([names[-1], summary['insert'] + summary['delete']])
+        self.report.writerow('')
+
+        lang_stat = self.repos.get_language_stat()
+        self.report.writerow(['Coding stat by language'])
+        headers = ['language', 'commits', 'insertions', 'deletions', 'changes']
+        self.report.writerow(headers)
+        for lang, stat in lang_stat.items():
+            row = [
+                lang, stat['commits'], stat['insert'], stat['delete'],
+                stat['insert'] + stat['delete'],
+            ]
+            self.report.writerow(row)
+        self.report.writerow('')
+
+        self.report.writerow(['Coding stat by repo'])
+        headers = ['name', 'commits', 'merges', 'insertions', 'deletions', 'changes']
+        self.report.writerow(headers)
+        for repo in self.repos.repos:
+            repo_stat = repo.get_commit_summary()
+            row = [
+                repo.name, repo_stat['commits'], repo_stat['merges'], repo_stat['insert'],
+                repo_stat['delete'], repo_stat['insert'] + repo_stat['delete'],
+            ]
+            self.report.writerow(row)
+        self.report.writerow('')
+
+        merge_stat = self.repos.get_merge_stat()
+        self.report.writerow(['Merge stat by name'])
+        headers = ['name', 'merge', 'merged_by']
+        self.report.writerow(headers)
+        for name, stat in merge_stat.items():
+            row = [name] + [stat.get(key, 0) for key in headers[1:]]
+            self.report.writerow(row)
+        self.report.writerow('')
+
+        self.report_file.flush()
 
     def draw_cover(self):
         img = Image.new('RGBA', default_size, 'white')
@@ -107,7 +160,7 @@ class Reporter:
         repo = self.repos.get_most_common_repo()
         texts1 = [
             '{0} 年你最常去的地方是 '.format(self.ctx.year),
-            util.encrypt_string(repo.name, self.ctx.encrypt),
+            repo.name,
         ]
         bolds1 = [1]
         summary = repo.get_commit_summary()

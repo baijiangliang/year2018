@@ -22,10 +22,10 @@ def run(cmd: str, shell=True, stdout=subprocess.PIPE, timeout=600, check=True) -
     return res.stdout.decode('utf8').strip()
 
 
-def run_with_check(cmd: str, timeout=600) -> bool:
+def run_with_check(cmd: str, capture=True, timeout=600) -> bool:
     """ Return true if cmd ran successfully else false. """
     try:
-        subprocess.run(cmd, shell=True, timeout=timeout, check=True)
+        subprocess.run(cmd, shell=True, capture_output=capture, timeout=timeout, check=True)
     except Exception as e:
         print(e)
         return False
@@ -72,7 +72,7 @@ def get_percents(nums: List[Any], ratio=100, digits=2) -> List[float]:
 
 
 def get_name_from_email(email: str) -> str:
-    return email.split('@')[0].split('.')[0]
+    return email.split('@')[0].rsplit('.', maxsplit=1)[0]
 
 
 def encrypt_name(name: str, encrypt=False) -> str:
