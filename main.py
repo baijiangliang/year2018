@@ -58,8 +58,8 @@ def get_user_info() -> Dict[str, Any]:
         encrypt = True
     info = {
         'name': name,
-        'emails': emails,
-        'git_inputs': git_inputs,
+        'emails': list(set(emails)),
+        'git_inputs': list(set(git_inputs)),
         'encrypt': encrypt,
     }
     return info

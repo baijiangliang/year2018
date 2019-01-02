@@ -113,10 +113,13 @@ class Reporter:
 
         merge_stat = self.repos.get_merge_stat()
         self.report.writerow(['Merge stat by name'])
-        headers = ['name', 'merge', 'merged_by']
+        headers = ['name', 'merge', 'merged_by', 'merges']
         self.report.writerow(headers)
         for name, stat in merge_stat.items():
-            row = [name] + [stat.get(key, 0) for key in headers[1:]]
+            row = [
+                name, stat.get('merge', 0), stat.get('merged_by', 0),
+                stat.get('merge', 0) + stat.get('merged_by', 0),
+            ]
             self.report.writerow(row)
         self.report.writerow('')
 
