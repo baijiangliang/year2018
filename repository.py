@@ -99,16 +99,19 @@ class Repo:
             if not commit_log:
                 continue
             commit = self.parse_git_log(commit_log)
+            if not commit:
+                continue
             self.commit_list.append(commit)
             self.commit_dict[commit.id] = commit
             if commit.email in self.ctx.emails:
                 self.user_commits.append(commit)
 
-    def parse_git_log(self, commit_log: str) -> Commit:
+    def parse_git_log(self, commit_log: str) -> Any:
         """ Parse formatted git log"""
         lines = commit_log.split('\n')
-        if len(lines) < 7:
-            raise ValueError("Wrong git log format: " + commit_log)
+        if len(lines) < 6:
+            print('Wrong git log format: ' + commit_log)
+            return
         commit = Commit(repo_dir=self.directory, commit_id=lines[0], parent_ids=lines[1].split(' '),
                         author=lines[2], email=lines[3], timestamp=int(lines[4]))
         commit.subject = lines[5]
