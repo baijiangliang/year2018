@@ -47,8 +47,7 @@ class Repo:
     def __init__(self, git_url_or_path: str, ctx: util.DotDict):
         if os.path.isdir(git_url_or_path):  # git repository path
             repo_dir = git_url_or_path
-            os.chdir(repo_dir)
-            if util.run(const.CHECK_GIT_DIR_CMD, check=False) != 'true':
+            if not util.is_git_dir(repo_dir):
                 print('Error: {0} is not a git repository!'.format(self.git_dir))
                 raise ValueError('Invalid git path!')
             repo_name = os.path.basename(repo_dir)
@@ -60,7 +59,7 @@ class Repo:
             repo_name = git_url_or_path.rsplit('/', 1)[-1].split('.')[0]
             repo_dir = os.path.join(repo_parent_dir, repo_name)
             # clone repository if not exists
-            if not os.path.exists(repo_dir):
+            if not os.path.isdir(repo_dir):
                 try:
                     util.run(git_clone_tmpl.format(git_url=git_url_or_path), stdout=None)
                     print('Clone {0} succeed!'.format(git_url_or_path))
@@ -153,7 +152,7 @@ class Repo:
         if not commit:
             git_cmd = git_show_tmpl.format(commit_id=commit_id, fmt=const.GIT_LOG_FORMAT)
             try:
-                res = util.run(git_cmd, check=True)
+                res = util.run(git_cmd)
             except Exception as e:
                 print(e)
                 return
@@ -225,9 +224,15 @@ class Repos:
         self.ctx = ctx
         self.repos = []
         for git_input in ctx.git_inputs:
-            repo = Repo(git_input, ctx)
+            try:
+                repo = Repo(git_input, ctx)
+            except Exception as e:
+                print(e)
+                continue
             if repo.user_commits:
                 self.repos.append(repo)
+        if not self.repos:
+            raise ValueError('Empty repo list!')
 
     def get_commit_summary(self) -> util.DotDict:
         summary = {
@@ -368,7 +373,7 @@ class Repos:
                         authors[commit.email].add(commit.author)
         result = {}
         for email, stat in merges.items():
-            # TODO: networkx doesn't support Chinese well, use English names instead, damn it!
+            # TODO: networkx doesn't support Chinese well, use English names instead
             readable_name = util.encrypt_name(get_most_readable_name(authors[email]),
                                               self.ctx.encrypt)
             name = util.encrypt_name(util.get_name_from_email(email), self.ctx.encrypt)
