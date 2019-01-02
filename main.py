@@ -47,10 +47,9 @@ def get_user_info() -> Dict[str, Any]:
             for dir_name in dirs:
                 if dir_name.startswith('.') or dir_name == 'year2018':
                     continue
-                git_dir = os.path.join(root, dir_name)
-                os.chdir(git_dir)
-                if util.run(const.CHECK_GIT_DIR_CMD, check=False) == 'true':
-                    git_inputs.append(git_dir)
+                dir_path = os.path.join(root, dir_name)
+                if util.is_git_dir(dir_path):
+                    git_inputs.append(dir_path)
     print('请选择是否对报告中的项目名、人名等进行加密，默认不加密(开启加密后，year2018 会变成 ye****18)')
     encrypt = False
     option = input('是否加密(y/n)，输入 y 开启\n').strip()
@@ -88,7 +87,7 @@ def main():
     ctx.update(get_time_info())
     print('\nContext:')
     for key, val in ctx.items():
-        if key == 'git_inputs:':
+        if key == 'git_inputs':
             print('git_inputs: ')
             print(' '.join(val))
             continue

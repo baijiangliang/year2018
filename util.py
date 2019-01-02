@@ -1,7 +1,10 @@
 # coding: utf8
+import os
 import subprocess
 from  datetime import datetime
 from typing import List, Any
+
+import const
 
 
 class DotDict(dict):
@@ -17,6 +20,16 @@ def run(cmd: str, shell=True, stdout=subprocess.PIPE, timeout=600, check=True) -
     if res.stdout is None:
         return ''
     return res.stdout.decode('utf8').strip()
+
+
+def run_with_check(cmd: str, timeout=600) -> bool:
+    """ Return true if cmd ran successfully else false. """
+    try:
+        subprocess.run(cmd, shell=True, timeout=timeout, check=True)
+    except Exception as e:
+        print(e)
+        return False
+    return True
 
 
 def timestamp_to_datetime(timestamp: int) -> datetime:
@@ -73,7 +86,7 @@ def encrypt_name(name: str, encrypt=False) -> str:
             return name
         else:
             return '*' + name[1:]
-    elif size <= 5:
+    elif size <= 6:
         return '*' * 2 + name[2:]
     else:
         return '*' * 3 + name[3:]
@@ -91,3 +104,11 @@ def encrypt_string(string: str, encrypt=False) -> str:
         return string[:2] + '*' * (size - 4) + string[-2:]
     else:
         return string[:3] + '*' * (size - 6) + string[-3:]
+
+
+def is_git_dir(dir_path: str) -> bool:
+    """ Check if the given directory is a git repository. """
+    if not os.path.isdir(dir_path):
+        return False
+    os.chdir(dir_path)
+    return run_with_check(const.CHECK_GIT_DIR_CMD)
