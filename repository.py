@@ -8,7 +8,7 @@ import const
 import util
 
 git_clone_tmpl = 'git clone {git_url}'
-git_log_tmpl = 'git log master --since="{begin}" --until="{end}"  --format="{fmt}" --numstat'
+git_log_tmpl = 'git log {branch} --since="{begin}" --until="{end}"  --format="{fmt}" --numstat'
 git_show_tmpl = 'git show {commit_id} --format="{fmt}"'
 
 # If the commit stat exceeds limits in one commit, this commit will be considered as auto-generated
@@ -79,7 +79,14 @@ class Repo:
     def parse_git_commits(self):
         """ Parse commits in the given time range. """
         os.chdir(self.git_dir)
-        git_log_cmd = git_log_tmpl.format(begin=self.ctx.begin, end=self.ctx.end,
+        # Use master branch if it exists
+        branches = util.run(const.GIT_BRANCH_CMD).split('\n')
+        branch = ''
+        for line in branches:
+            if line.strip() == 'master':
+                branch = 'master'
+                break
+        git_log_cmd = git_log_tmpl.format(branch=branch, begin=self.ctx.begin, end=self.ctx.end,
                                           fmt=const.GIT_LOG_FORMAT)
         git_log = util.run(git_log_cmd)
         commit_logs = git_log.split(const.GIT_COMMIT_SEPARATOR)
