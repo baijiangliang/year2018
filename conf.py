@@ -1,7 +1,7 @@
 # coding: utf8
 
 # Change directories you want to ignore here
-ignore_dirs = {
+ignore_directories = {
     'common': [
         'vendor',
         'build',
