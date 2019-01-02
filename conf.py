@@ -39,7 +39,7 @@ ignore_dirs = {
     ],
 }
 
-# If linguist.rb doesn't work, then code files are detected according to this config.
+# If linguist doesn't work, then code file's language are detected according to this config.
 code_file_extensions = {
     'py': 'Python',
     'go': 'Go',

@@ -1,4 +1,5 @@
 # coding: utf8
+import json
 import os
 import traceback
 from datetime import datetime
@@ -49,7 +50,7 @@ class Repo:
         if os.path.isdir(git_url_or_path):  # git repository path
             repo_dir = git_url_or_path
             if not util.is_git_dir(repo_dir):
-                print('Error: {0} is not a git repository!'.format(self.git_dir))
+                print('Error: {0} is not a git repository!'.format(repo_dir))
                 raise ValueError('Invalid git path!')
             repo_name = os.path.basename(repo_dir)
         else:  # git remote url
@@ -67,18 +68,22 @@ class Repo:
                 except Exception as e:
                     print('Error: fail to clone {0}, reason: {1}'.format(git_url_or_path, e))
                     raise e
-        self.git_dir = repo_dir
+        self.directory = repo_dir
         self.name = util.encrypt_string(repo_name, ctx.encrypt)
         self.git_url = util.run(const.GIT_REMOTE_URL_CMD, check=False)
         self.ctx = ctx
+        self.linguist_enabled = False
+        self.linguist_res = {}
+        self.analyze_by_linguist()
         self.commit_list = []
         self.commit_dict = {}
         self.user_commits = []
         self.parse_git_commits()
+        print('{0} loaded successfully!'.format(repo_name))
 
     def parse_git_commits(self):
         """ Parse commits in the given time range. """
-        os.chdir(self.git_dir)
+        os.chdir(self.directory)
         # Use master branch if it exists
         branches = util.run(const.GIT_BRANCH_CMD).split('\n')
         branch = ''
@@ -104,13 +109,29 @@ class Repo:
         lines = commit_log.split('\n')
         if len(lines) < 7:
             raise ValueError("Wrong git log format: " + commit_log)
-        commit = Commit(repo_dir=self.git_dir, commit_id=lines[0], parent_ids=lines[1].split(' '),
+        commit = Commit(repo_dir=self.directory, commit_id=lines[0], parent_ids=lines[1].split(' '),
                         author=lines[2], email=lines[3], timestamp=int(lines[4]))
         commit.subject = lines[5]
         commit.num_stat = [line.strip() for line in lines[6:] if line.strip()]
         if commit.email in self.ctx.emails:
-            Repo.parse_commit_stat(commit)
+            self.parse_commit_stat(commit)
         return commit
+
+    def analyze_by_linguist(self):
+        if not self.ctx.linguist_enabled:
+            return
+        ruby_script = os.path.join(self.ctx.run_dir, 'linguist.rb')
+        linguist_cmd = 'ruby {0} {1}'.format(ruby_script, self.directory)
+        try:
+            res = util.run(linguist_cmd)
+            code_files = json.loads(res)
+        except Exception as e:
+            print(e)
+            return
+        for lang, files in code_files.items():
+            for file in files:
+                self.linguist_res[file] = lang
+        self.linguist_enabled = True
 
     def get_commit_summary(self) -> util.DotDict:
         summary = {
@@ -161,8 +182,7 @@ class Repo:
             commit = self.parse_git_log(commit_log)
         return commit
 
-    @staticmethod
-    def parse_commit_stat(commit: Commit):
+    def parse_commit_stat(self, commit: Commit):
         total_files, code_files = len(commit.num_stat), 0
         total_ins = total_del = code_ins = code_del = 0
         lang_stat = {}
@@ -173,7 +193,7 @@ class Repo:
             insert, delete = int(insert), int(delete)
             total_ins += insert
             total_del += delete
-            lang = Repo.detect_code_file(file_name)
+            lang = self.detect_file_lang(file_name)
             if not lang:
                 continue
             code_files += 1
@@ -202,20 +222,20 @@ class Repo:
         commit.code_del = code_del
         commit.lang_stat = lang_stat
 
-    @staticmethod
-    def detect_code_file(file_path: str) -> str:
+    def detect_file_lang(self, file_path: str) -> str:
         """
         Detect which programming language is used in the file .
         """
-        # TODO use linguist
-        language = ''
         first_dir = file_path.split('/', maxsplit=1)[0].strip()
-        if first_dir in conf.ignore_dirs['common'] or '.' not in file_path:
-            return language
-        extension = file_path.rsplit('.', maxsplit=1)[-1].strip().lower()
-        if extension in conf.code_file_extensions:
-            language = conf.code_file_extensions[extension]
-        if language in conf.ignore_dirs and first_dir in conf.ignore_dirs[language]:
+        if first_dir in conf.ignore_dirs['common']:
+            return ''
+        full_path = os.path.join(self.directory, file_path)
+        if self.linguist_enabled and os.path.exists(full_path):
+            language = self.linguist_res.get(file_path, '')
+        else:
+            extension = file_path.rsplit('.', maxsplit=1)[-1].strip().lower()
+            language = conf.code_file_extensions.get(extension, '')
+        if first_dir in conf.ignore_dirs.get(language, []):
             language = ''
         return language
 
@@ -278,7 +298,7 @@ class Repos:
         result = {day.timetuple().tm_yday: stat['weight'] for day, stat in commits.items()}
         return result
 
-    def get_commit_stat_by_day(self) -> Dict[datetime.date, Dict[str, int]]:
+    def get_commit_stat_by_day(self) -> Dict[datetime.date, Dict[str, Any]]:
         """ Get each day's commit stat. """
         commits = {}
         for repo in self.repos:
@@ -286,16 +306,16 @@ class Repos:
                 commit_day = util.timestamp_to_datetime(commit.timestamp).date()
                 if commit_day not in commits:
                     commits[commit_day] = {
-                        'commits': 1,
+                        'commits': [commit],
                         'insert': commit.code_ins,
                         'delete': commit.code_del,
                     }
                 else:
-                    commits[commit_day]['commits'] += 1
+                    commits[commit_day]['commits'].append(commit)
                     commits[commit_day]['insert'] += commit.code_ins
                     commits[commit_day]['delete'] += commit.code_del
         for day, stat in commits.items():
-            weight = weight_commits(stat['commits'], stat['insert'], stat['delete'])
+            weight = weight_commits(len(stat['commits']), stat['insert'], stat['delete'])
             commits[day]['weight'] = weight
         return commits
 
@@ -317,7 +337,7 @@ class Repos:
                         latest_commit, latest_time = commit, commit_time
         return latest_commit
 
-    def get_busiest_day(self) -> Tuple[datetime.date, Dict[str, int]]:
+    def get_busiest_day(self) -> Tuple[datetime.date, Dict[str, Any]]:
         """ Get the day which has max commit weight. """
         commits = self.get_commit_stat_by_day()
         busiest_day = max(commits.keys(), key=lambda x: commits[x]['weight'])

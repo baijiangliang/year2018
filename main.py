@@ -1,13 +1,14 @@
 # coding: utf8
 """Generate annual report for programmers."""
-import traceback
 import os
 import time
+import traceback
 from datetime import datetime
 from typing import Dict, Any
 
 import const
 import util
+from dependency import check_linguist
 from report import Reporter
 
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -86,6 +87,7 @@ def main():
     ctx.run_dir = RUN_DIR
     ctx.update(get_user_info())
     ctx.update(get_time_info())
+    ctx.update(check_linguist(ctx))
     print('\nContext:')
     for key, val in ctx.items():
         if key == 'git_inputs':
