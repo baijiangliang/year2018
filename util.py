@@ -23,10 +23,10 @@ def run(cmd: str, shell=True, stdout=subprocess.PIPE, timeout=600, check=True) -
     return res.stdout.decode('utf8').strip()
 
 
-def run_with_check(cmd: str, capture=True, timeout=600) -> bool:
+def run_with_check(cmd: str, stdout=subprocess.PIPE, timeout=600) -> bool:
     """ Return true if cmd ran successfully else false. """
     try:
-        subprocess.run(cmd, shell=True, capture_output=capture, timeout=timeout, check=True)
+        subprocess.run(cmd, shell=True, stdout=stdout, timeout=timeout, check=True)
     except Exception as e:
         print(e)
         return False
