@@ -72,13 +72,15 @@ class Repo:
         self.name = util.encrypt_string(repo_name, ctx.encrypt)
         self.git_url = util.run(const.GIT_REMOTE_URL_CMD, check=False)
         self.ctx = ctx
+        self.language = ''
         self.linguist_enabled = False
         self.linguist_res = {}
-        self.analyze_by_linguist()
         self.commit_list = []
         self.commit_dict = {}
         self.user_commits = []
+        self.analyze_by_linguist()
         self.parse_git_commits()
+        self.get_repo_language()
         print('{0} loaded successfully!'.format(repo_name))
 
     def parse_git_commits(self):
@@ -91,7 +93,8 @@ class Repo:
             if line.strip() == 'master':
                 branch = 'master'
                 break
-        git_log_cmd = git_log_tmpl.format(branch=branch, begin=self.ctx.begin, end=self.ctx.end,
+        begin, end = util.get_year_ends(self.ctx.year)
+        git_log_cmd = git_log_tmpl.format(branch=branch, begin=begin, end=end,
                                           fmt=const.GIT_LOG_FORMAT)
         git_log = util.run(git_log_cmd)
         commit_logs = git_log.split(const.GIT_COMMIT_SEPARATOR)
@@ -116,8 +119,7 @@ class Repo:
                         author=lines[2], email=lines[3], timestamp=int(lines[4]))
         commit.subject = lines[5]
         commit.num_stat = [line.strip() for line in lines[6:] if line.strip()]
-        if commit.email in self.ctx.emails:
-            self.parse_commit_stat(commit)
+        self.parse_commit_stat(commit)
         return commit
 
     def analyze_by_linguist(self):
@@ -136,6 +138,12 @@ class Repo:
                 self.linguist_res[file] = lang
         self.linguist_enabled = True
 
+    def get_repo_language(self):
+        stat = self.get_language_stat(only_user=False)
+        if not stat:
+            return
+        self.language = max(stat.keys(), key=lambda x: stat[x]['weight'])
+
     def get_commit_summary(self) -> util.DotDict:
         summary = {
             'commits': 0,
@@ -151,10 +159,12 @@ class Repo:
             summary['delete'] += commit.code_del
         return util.DotDict(summary)
 
-    def get_language_stat(self) -> Dict[str, Any]:
+    def get_language_stat(self, only_user=True) -> Dict[str, Any]:
         """ Get each used language's commit stat. """
         res = {}
-        for commit in self.user_commits:
+        for commit in self.commit_list:
+            if only_user and commit.email not in self.ctx.emails:
+                continue
             for lang, stat in commit.lang_stat.items():
                 if lang not in res:
                     res[lang] = {
@@ -382,19 +392,24 @@ class Repos:
                 # user merges others' commit
                 elif commit.email in self.ctx.emails:
                     if merged.email not in merges:
-                        merges[merged.email] = {}
+                        merges[merged.email] = {
+                            'merge': 1,
+                            'merged_by': 0,
+                        }
                         authors[merged.email] = {merged.author}
                     else:
-                        merges[merged.email]['merge'] = merges[merged.email].get('merge', 0) + 1
+                        merges[merged.email]['merge'] += 1
                         authors[merged.email].add(merged.author)
                 # user's commit merged by others
                 elif merged.email in self.ctx.emails:
                     if commit.email not in merges:
-                        merges[commit.email] = {}
+                        merges[commit.email] = {
+                            'merge': 0,
+                            'merged_by': 1
+                        }
                         authors[commit.email] = {commit.author}
                     else:
-                        merges[commit.email]['merged_by'] = merges[commit.email].get('merged_by',
-                                                                                     0) + 1
+                        merges[commit.email]['merged_by'] += 1
                         authors[commit.email].add(commit.author)
         result = {}
         for email, stat in merges.items():

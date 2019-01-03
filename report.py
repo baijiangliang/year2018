@@ -79,34 +79,36 @@ class Reporter:
         self.report.writerow(title)
         self.report.writerow('')
 
-        summary = self.repos.get_commit_summary()
         self.report.writerow(['Summary'])
+        summary = self.repos.get_commit_summary()
         names = ['projects', 'commits', 'merges', 'changes']
         for name in names[:3]:
             self.report.writerow([name, summary[name]])
         self.report.writerow([names[-1], summary['insert'] + summary['delete']])
         self.report.writerow('')
 
-        lang_stat = self.repos.get_language_stat()
-        self.report.writerow(['Coding stat by language'])
-        headers = ['language', 'commits', 'insertions', 'deletions', 'changes']
-        self.report.writerow(headers)
-        for lang, stat in lang_stat.items():
-            row = [
-                lang, stat['commits'], stat['insert'], stat['delete'],
-                stat['insert'] + stat['delete'],
-            ]
-            self.report.writerow(row)
-        self.report.writerow('')
-
         self.report.writerow(['Coding stat by repo'])
-        headers = ['name', 'commits', 'merges', 'insertions', 'deletions', 'changes']
+        headers = ['name', 'language', 'commits', 'merges', 'insertions', 'deletions', 'changes']
         self.report.writerow(headers)
         for repo in self.repos.repos:
             repo_stat = repo.get_commit_summary()
             row = [
-                repo.name, repo_stat['commits'], repo_stat['merges'], repo_stat['insert'],
-                repo_stat['delete'], repo_stat['insert'] + repo_stat['delete'],
+                repo.name, repo.language, repo_stat['commits'], repo_stat['merges'],
+                repo_stat['insert'], repo_stat['delete'], repo_stat['insert'] + repo_stat['delete'],
+            ]
+            self.report.writerow(row)
+        self.report.writerow('')
+
+        self.report.writerow(['Coding stat by language'])
+        lang_stat = self.repos.get_language_stat()
+        headers = ['language', 'commits', 'insertions', 'deletions', 'changes']
+        self.report.writerow(headers)
+        sorted_lang = sorted(lang_stat.keys(), key=lambda x: lang_stat[x]['weight'], reverse=True)
+        for lang in sorted_lang:
+            stat = lang_stat[lang]
+            row = [
+                lang, stat['commits'], stat['insert'], stat['delete'],
+                stat['insert'] + stat['delete'],
             ]
             self.report.writerow(row)
         self.report.writerow('')
@@ -115,10 +117,13 @@ class Reporter:
         self.report.writerow(['Merge stat by name'])
         headers = ['name', 'merge', 'merged_by', 'merges']
         self.report.writerow(headers)
-        for name, stat in merge_stat.items():
+        sorted_names = sorted(merge_stat,
+                              key=lambda x: merge_stat[x]['merge'] + merge_stat[x]['merged_by'],
+                              reverse=True)
+        for name in sorted_names:
+            stat = merge_stat[name]
             row = [
-                name, stat.get('merge', 0), stat.get('merged_by', 0),
-                stat.get('merge', 0) + stat.get('merged_by', 0),
+                name, stat['merge'], stat['merged_by'], stat['merge'] + stat['merged_by']
             ]
             self.report.writerow(row)
         self.report.writerow('')
@@ -225,16 +230,16 @@ class Reporter:
         weights = [lang_stat[key]['weight'] for key in labels]
         percents = util.get_percents(weights)
         weighted = [(labels[i], percents[i]) for i in range(len(labels))]
-        weighted.sort(key=lambda x: x[1], reverse=True)
         res = []
-        other_index = 0
-        for i, item in enumerate(weighted):
+        other_percent = 0
+        for item in weighted:
             if item[1] > 2:
                 res.append(item)
             else:
-                other_index = i
-        other_percent = sum(list(item[1] for item in weighted[other_index:])) + 0.01
-        res.append(('other', other_percent))
+                other_percent += item[1]
+        if other_percent > 0:
+            other_percent += 0.001
+            res.append(('other', other_percent))
         labels, weights = [item[0] for item in res], [item[1] for item in res]
         plt.pie(weights, labels=labels, autopct='%1.1f%%', startangle=90)
         plt.title('Programming languages by weight')
