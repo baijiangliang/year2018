@@ -1,7 +1,6 @@
 # coding: utf8
 """Generate annual report for programmers."""
 import os
-import time
 import traceback
 from datetime import datetime
 from typing import Dict, Any
@@ -18,11 +17,18 @@ def get_user_info() -> Dict[str, Any]:
     """ Get information from user's inputs. """
     print('Sometimes it is the people no one imagines anything of, who do the things no one can '
           'imagine.\n' + ' ' * 70 + '-- Alan Turing')
-    print('欢迎使用程序员年度总结生成器')
+    print('欢迎使用程序员年度报告生成器')
     while True:
         name = input('请输入你的名字，按回车继续\n').strip()
         if name:
             break
+    now = datetime.now()
+    recent_year = now.year
+    if now.month == 1:
+        recent_year -= 1
+    year = input('请输入你想要生成报告的年份，不输入则使用 {0}\n'.format(recent_year)).strip()
+    if not year:
+        year = recent_year
     print('请输入你近一年使用过的 git 邮箱，不输入则使用 ${0} 的结果'.format(const.GIT_EMAIL_CMD))
     emails = []
     while True:
@@ -59,6 +65,7 @@ def get_user_info() -> Dict[str, Any]:
         encrypt = True
     info = {
         'name': name,
+        'year': int(year),
         'emails': list(set(emails)),
         'git_inputs': list(set(git_inputs)),
         'encrypt': encrypt,
@@ -66,27 +73,10 @@ def get_user_info() -> Dict[str, Any]:
     return info
 
 
-def get_time_info() -> Dict[str, int]:
-    """ Get recent year's info. """
-    now = datetime.now()
-    recent_year = now.year
-    if now.month == 1:
-        recent_year -= 1
-    begin_ts = time.mktime(datetime(year=recent_year, month=1, day=1).timetuple())
-    end_ts = time.mktime(datetime(year=recent_year + 1, month=1, day=1).timetuple())
-    year_ends = {
-        'year': recent_year,
-        'begin': int(begin_ts),
-        'end': int(end_ts),
-    }
-    return year_ends
-
-
 def main():
     ctx = util.DotDict()
     ctx.run_dir = RUN_DIR
     ctx.update(get_user_info())
-    ctx.update(get_time_info())
     ctx.update(check_linguist(ctx))
     print('\nContext:')
     for key, val in ctx.items():

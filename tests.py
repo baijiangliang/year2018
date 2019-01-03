@@ -16,8 +16,6 @@ class TestReporter(unittest.TestCase):
             'git_inputs': [run_dir],
             'encrypt': True,
             'year': 2018,
-            'begin': 1514736000,
-            'end': 1546272000,
             'linguist_enabled': False
         })
 

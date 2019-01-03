@@ -1,8 +1,9 @@
 # coding: utf8
 import os
 import subprocess
+import time
 from  datetime import datetime
-from typing import List, Any
+from typing import List, Any, Tuple
 
 import const
 
@@ -44,6 +45,12 @@ def timestamp_to_day_of_year(timestamp: int) -> int:
 def timestamp_to_fixed_day(timestamp: int) -> datetime:
     dt = datetime.fromtimestamp(timestamp)
     return dt.replace(year=2018, month=1, day=1)
+
+
+def get_year_ends(year: int) -> Tuple[int, int]:
+    begin_ts = time.mktime(datetime(year=year, month=1, day=1).timetuple())
+    end_ts = time.mktime(datetime(year=year + 1, month=1, day=1).timetuple())
+    return int(begin_ts), int(end_ts)
 
 
 def is_ascii(s: str) -> bool:
